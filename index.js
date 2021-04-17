@@ -1,107 +1,101 @@
-const connection = require("./connection");
+const EmpData = require('./lib/EmpData');
+const connection = require('./lib/dbConn');
+const cTable = require('console.table');
+const figlet = require('figlet');
+const inquirer = require('inquirer');
+const view = require('./lib/viewFuncs');
+const add = require('./lib/addFuncs');
+const del = require('./lib/delFuncs');
+const update = require('./lib/updateFuncs');
 
-class DB {
-  // Keeping a reference to the connection on the class in case we need it later
-  constructor(connection) {
-    this.connection = connection;
-  }
 
-  // Find all employees, join with roles and departments to display their roles, salaries, departments, and managers
-  findAllEmployees() {
-    return this.connection.query(
-      "SELECT employee.id, employee.first_name, employee.last_name, role.title, department.name AS department, role.salary, CONCAT(manager.first_name, ' ', manager.last_name) AS manager FROM employee LEFT JOIN role on employee.role_id = role.id LEFT JOIN department on role.department_id = department.id LEFT JOIN employee manager on manager.id = employee.manager_id;"
-    );
-  }
+// Use inquirer to prompt user for information
+const promptUser = (questions) => {
+    return inquirer.prompt(questions);
+};
 
-  // Find all employees except the given employee id
-  findAllPossibleManagers(employeeId) {
-    return this.connection.query(
-      "SELECT id, first_name, last_name FROM employee WHERE id != ?",
-      employeeId
-    );
-  }
 
-  // Create a new employee
-  createEmployee(employee) {
-    return this.connection.query("INSERT INTO employee SET ?", employee);
-  }
+// Function to exit the application
+const exitApp = () => {
+    console.log('Goodbye!');
+    connection.end();
+    process.exit();
+};
 
-  // Remove an employee with the given id
-  removeEmployee(employeeId) {
-    return this.connection.query(
-      "DELETE FROM employee WHERE id = ?",
-      employeeId
-    );
-  }
-
-  // Update the given employee's role
-  updateEmployeeRole(employeeId, roleId) {
-    return this.connection.query(
-      "UPDATE employee SET role_id = ? WHERE id = ?",
-      [roleId, employeeId]
-    );
-  }
-
-  // Update the given employee's manager
-  updateEmployeeManager(employeeId, managerId) {
-    return this.connection.query(
-      "UPDATE employee SET manager_id = ? WHERE id = ?",
-      [managerId, employeeId]
-    );
-  }
-
-  // Find all roles, join with departments to display the department name
-  findAllRoles() {
-    return this.connection.query(
-      "SELECT role.id, role.title, department.name AS department, role.salary FROM role LEFT JOIN department on role.department_id = department.id;"
-    );
-  }
-
-  // Create a new role
-  createRole(role) {
-    return this.connection.query("INSERT INTO role SET ?", role);
-  }
-
-  // Remove a role from the db
-  removeRole(roleId) {
-    return this.connection.query("DELETE FROM role WHERE id = ?", roleId);
-  }
-
-  // Find all departments, join with employees and roles and sum up utilized department budget
-  findAllDepartments() {
-    return this.connection.query(
-      "SELECT department.id, department.name, SUM(role.salary) AS utilized_budget FROM department LEFT JOIN role ON role.department_id = department.id LEFT JOIN employee ON employee.role_id = role.id GROUP BY department.id, department.name"
-    );
-  }
-
-  // Create a new department
-  createDepartment(department) {
-    return this.connection.query("INSERT INTO department SET ?", department);
-  }
-
-  // Remove a department
-  removeDepartment(departmentId) {
-    return this.connection.query(
-      "DELETE FROM department WHERE id = ?",
-      departmentId
-    );
-  }
-
-  // Find all employees in a given department, join with roles to display role titles
-  findAllEmployeesByDepartment(departmentId) {
-    return this.connection.query(
-      "SELECT employee.id, employee.first_name, employee.last_name, role.title FROM employee LEFT JOIN role on employee.role_id = role.id LEFT JOIN department department on role.department_id = department.id WHERE department.id = ?;",
-      departmentId
-    );
-  }
-
-  // Find all employees by manager, join with departments and roles to display titles and department names
-  findAllEmployeesByManager(managerId) {
-    return this.connection.query(
-      "SELECT employee.id, employee.first_name, employee.last_name, department.name AS department, role.title FROM employee LEFT JOIN role on role.id = employee.role_id LEFT JOIN department ON department.id = role.department_id WHERE manager_id = ?;",
-      managerId
-    );
-  }
+// Object to hold the task functions to fire from inquirer prompt
+const actionFunctions = {
+    'View All Employees': view.viewEmployees,
+    'View All Employees by Department': view.viewEmployeesByDept,
+    'View All Employees by Manager': view.viewEmployeesByMgr,
+    'Add Employee': add.addEmployee,
+    'Remove Employee': del.delEmployee,
+    'Update Employee Role': update.updateEmpRole,
+    'Update Employee Manager': update.updateEmpMgr,
+    'View All Roles': view.viewRoles,
+    'Add Role': add.addRole,
+    'Remove Role': del.delRole,
+    'View All Departments': view.viewDepartments,
+    'View Budget by Department': view.viewBudgetByDept,
+    'Add Department': add.addDepartment,
+    'Remove Department': del.delDepartment,
+    'Exit Application': exitApp
 }
 
-module.exports = new DB(connection);
+// Inquirer question - list of tasks
+const action = [
+    {
+        type: 'list',
+        message: 'What would you like to do?',
+        name: 'task',
+        choices: [
+            'View All Employees',
+            'View All Employees by Department',
+            'View All Employees by Manager',
+            'Add Employee',
+            'Remove Employee',
+            'Update Employee Role',
+            'Update Employee Manager',
+            'View All Roles',
+            'Add Role',
+            'Remove Role',
+            'View All Departments',
+            'View Budget by Department',
+            'Add Department',
+            'Remove Department',
+            'Exit Application'
+        ]
+    }
+];
+
+// Init prompt user for task to complete
+const init = async () => {
+    try {
+        console.log("\n------------------------\n")
+        const actionChoice = await promptUser(action);
+        console.log("\n------------------------\n")
+        await actionFunctions[actionChoice.task]();
+        init();
+    } catch (err) {
+        console.log(err);
+    }
+};
+
+// Displays start graphic and starts the init function
+const start = () => {
+    figlet('     H - E - L - L - O ', {
+        font: 'Big'
+    }, (err, data) => {
+        if (err) {
+            console.log(err)
+        }
+        console.log("\n")
+        console.log(data);
+        console.log("       ****************************************")
+        console.log("\n                    Welcome to the \n             Employee Management System!")
+        console.log("\n       ****************************************")
+        init();
+    })
+
+}
+
+start();
