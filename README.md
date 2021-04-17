@@ -28,6 +28,8 @@ This app allows the user to view and manage company employees using MySQL databa
 
 ## Demonstration
 
+View a complete video demonstration of the application: [Employee Management System Video Demo](https://drive.google.com/file/d/1DLsEDoEHY-xlC7kAsq8wU8ZgqZaMIbCG/view)
+
 ![Untitled_ Apr 17, 2021 12_04 AM](https://user-images.githubusercontent.com/38770396/115105026-280af800-9f11-11eb-90e2-99c5eebc7cc8.gif)
 
 
